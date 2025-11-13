@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>商品選択実験（軽量ランナー6課題・click_log対応）</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { font-family: -apple-system, system-ui, sans-serif; margin: 0; padding: 24px; }
+    .wrap { max-width: 960px; margin: 0 auto; }
+    .head { display:flex; align-items:center; justify-content:space-between; gap: 12px; }
+    .muted { color:#666; font-size: 12px; }
+    .panel { margin-top: 12px; overflow-x:auto; }
+    table { border-collapse: collapse; width: 100%; min-width: 720px; }
+    th, td { border: 1px solid #ddd; padding: 8px 10px; text-align: center; }
+    th { background: #f7f7f7; position: sticky; top:0; }
+    tr:hover td { background: #fafafa; }
+    .rowSelect { padding: 6px 10px; cursor: pointer; }
+    .controls { display:flex; gap: 8px; margin-top: 12px; }
+    button { padding: 10px 14px; font-size: 15px; cursor: pointer; }
+    .next { background:#0b6; color:white; border:0; border-radius:6px; }
+    .ghost { background:#eee; border:0; border-radius:6px; }
+    .center { text-align:center; margin-top: 48px; }
+    pre { background:#f7f7f7; padding:12px; overflow:auto; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div id="app">読み込み中…</div>
+  </div>
+  <script src="js/experiment.js"></script>
+</body>
+</html>
