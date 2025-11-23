@@ -664,7 +664,7 @@ function finishTask(task, choice) {
     decision_time: endTime,
     click_log: clickLog,
     attribute_order: task.attributes,
-    chosen_review_value: chosen_review_value,
+    chosen_review_value: chosenReview,
     participant_info: window.participantInfo || null,
     indecisiveness_scale: window.indecisivenessScale || null
   };
