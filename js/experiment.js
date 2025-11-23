@@ -666,7 +666,7 @@ function finishTask(task, choice) {
     attribute_order: task.attributes,
     chosen_review_value: chosen_review_value,
     participant_info: window.participantInfo || null,
-    indecisiveness_scale: window.indecisivenessScale || null
+    indecisiveness_scale: window.indecisivenessScale || null,
   };
 
   sendToSheet(resultObj);
