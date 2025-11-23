@@ -655,6 +655,19 @@ function highlightSelected(div, btn) {
 function finishTask(task, choice) {
   const endTime = Math.round(performance.now() - startTime);
 
+  // ------ ★ chosen_review_value を計算 ------
+  let chosen_review_value = null;
+
+  if (task.review_present) {
+    const idx = task.labels.indexOf(choice);
+    if (idx >= 0) {
+      const reviewIndex = task.attributes.indexOf("レビュー評価");
+      if (reviewIndex >= 0) {
+        chosen_review_value = task.options[idx][reviewIndex];
+      }
+    }
+  }
+
   const resultObj = {
     task_name: task.name,
     cost_level: task.cost,
@@ -664,7 +677,7 @@ function finishTask(task, choice) {
     decision_time: endTime,
     click_log: clickLog,
     attribute_order: task.attributes,
-    chosen_review_value: chosen_review_value,
+    chosen_review_value: chosen_review_value,   // ← 正しい参照
     participant_info: window.participantInfo || null,
     indecisiveness_scale: window.indecisivenessScale || null,
   };
