@@ -6,7 +6,7 @@
 // ================================
 // 0. Google スプレッドシート URL
 // ================================
-const SHEET_URL = "https://script.google.com/macros/s/AKfycbxWdEYw98f0Jq-mTvvV8DNLrHqOf1gfJpJgl8ljg3mJ_rWThEYvzk-Eo_2uUlkHb04y/exec";
+const SHEET_URL = "https://script.google.com/macros/s/AKfycbydur42AaC6RyV2BHA5vxrcqSoeMS7nZ2GrwrWXhfFUbJ7-vlZcr43z6wBXnUEg32rN/exec";
 
 // -------------------------------------------
 // 🔥 patternID（1〜16）をページ読み込みごとに自動決定
