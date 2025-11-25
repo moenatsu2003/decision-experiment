@@ -345,6 +345,22 @@ function sendToSheet(resultObj) {
  * 6課題データ（5属性）ベース
  ***************************************/
 const TASKS_BASE = {
+    // -------------- 練習課題（必ず先に実施） --------------
+  practiceGift: {
+    name: "【練習】友人へのプレゼント",
+    cost: "practice",
+    attributes: ["価格","デザイン","実用性","ブランド知名度","カラー"],
+    options: [
+      ["3000円","良い","やや良い","高い","赤"],
+      ["1500円","やや悪い","ふつう","低い","青"],
+      ["2000円","ふつう","良い","やや高い","黄色"],
+      ["3500円","良い","ふつう","ふつう","黒"],
+      ["1000円","悪い","やや悪い","低い","緑"]
+    ],
+    labels: ["A","B","C","D","E"],
+    review_present: false
+  },
+
   // 高コスト
   laptop: {
     name: "ノートパソコン",
@@ -490,6 +506,12 @@ function buildTasksWithReview() {
       t.review_present = false;
     }
   }
+　
+　  // --- 練習課題はレビューなしで6属性にする ---
+  const p = tasks["practiceGift"];
+  p.attributes.push("その他情報");
+  p.options = p.options.map(r => [...r, "—"]);
+  p.review_present = false;
 
   return tasks;
 }
@@ -525,8 +547,11 @@ function applyAttributeOrder(tasks) {
 
 const TASKS_ORDERED = applyAttributeOrder(JSON.parse(JSON.stringify(ALL_TASKS)));
 
-// 課題順ランダム
-const TASK_KEYS = shuffle(["laptop","apartment","souvenir","detergent","company","course"]);
+// 本番課題だけシャッフル
+const MAIN_TASK_KEYS = shuffle(["laptop","apartment","souvenir","detergent","company","course"]);
+
+// 練習課題 → 本番課題 の順に実施
+const TASK_KEYS = ["practiceGift", ...MAIN_TASK_KEYS];
 
 /***************************************
  * UIレンダリング＋ログ
@@ -693,6 +718,13 @@ function highlightSelected(div, btn) {
 // =====================================
 function finishTask(task, choice) {
   const endTime = Math.round(performance.now() - startTime);
+
+  // ---- ここを追加：練習課題は記録しない ----
+  if (task.cost === "practice") {
+    console.log("練習課題のため送信をスキップ");
+    return;
+  }
+  // ------------------------------------------
 
   // ------ ★ chosen_review_value を計算 ------
   let chosen_review_value = null;
