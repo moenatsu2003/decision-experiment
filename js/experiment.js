@@ -483,8 +483,17 @@ function buildTasksWithReview() {
   for (const key of Object.keys(tasks)) {
     const t = tasks[key];
 
-    // レビューあり課題
+    // ★★★ 練習課題だけはレビュー判定を完全にスキップ ★★★
+    if (t.cost === "practice") {
+      t.review_present = false;
+      // 何も追加しない（6属性のまま）
+      continue;
+    }
+
+    // ここ以降は本番6課題のみ
+
     if (key === selectedHigh || key === selectedLow || key === selectedNone) {
+      // レビューあり
       t.attributes.push("レビュー評価");
       t.options = t.options.map((row, idx) => {
         const r = row.slice();
@@ -495,8 +504,8 @@ function buildTasksWithReview() {
       });
       t.review_present = true;
 
-    // レビューなし課題（ダミー属性）
     } else {
+      // レビューなし（ダミー属性）
       t.attributes.push("その他情報");
       t.options = t.options.map(row => {
         const r = row.slice();
@@ -506,12 +515,6 @@ function buildTasksWithReview() {
       t.review_present = false;
     }
   }
-　
-　  // --- 練習課題はレビューなしで6属性にする ---
-  const p = tasks["practiceGift"];
-  p.attributes.push("その他情報");
-  p.options = p.options.map(r => [...r, "—"]);
-  p.review_present = false;
 
   return tasks;
 }
