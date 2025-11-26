@@ -1,105 +1,180 @@
 /***************************************
- * experiment.js（完全安定版）
- * 6属性方式 + レビュー列 + 16パターン + 参加者情報＋尺度
+ * experiment.js（完全版）
+ * 6属性方式 + レビュー列 + 16パターン
+ * 導入説明 / 参加者情報 / 尺度 / 練習課題 / 本番6課題 / 終了画面
  ***************************************/
 
 // ================================
 // 0. Google スプレッドシート URL
 // ================================
-const SHEET_URL = "https://script.google.com/macros/s/AKfycbydur42AaC6RyV2BHA5vxrcqSoeMS7nZ2GrwrWXhfFUbJ7-vlZcr43z6wBXnUEg32rN/exec";
+const SHEET_URL = "https://script.google.com/macros/s/AKfycbz2AYuQJU9igRHOX0M6BPlW4dCPqrEjkzIPHC3QFR6Dn1TW60FcaUJZul2Z7-AWAntv/exec";
 
-// -------------------------------------------
-// 🔥 patternID（1〜16）をページ読み込みごとに自動決定
-// -------------------------------------------
-const urlParams = new URLSearchParams(window.location.search);
-let patternID = Number(urlParams.get("pattern"));
-
-if (!patternID) {
-  // ランダムに 1〜16 を割り当てる
-  patternID = Math.floor(Math.random() * 16) + 1;
-
-  // URL を pattern=xx に書き換えて再読み込み
-  window.location.search = "?pattern=" + patternID;
+// 画面共通ヘルパー
+function setAppHTML(html) {
+  const app = document.getElementById("app");
+  if (app) app.innerHTML = html;
 }
 
-const rand = makeSeededRandom(patternID);
+/* ===========================================
+   0-1: 実験導入ページ（研究倫理風）
+=========================================== */
+function showIntroPage() {
+  return new Promise((resolve) => {
+    setAppHTML(`
+      <div style="max-width:720px;margin:24px auto;padding:16px 18px;
+                  background:#FFFFFF;border-radius:12px;
+                  box-shadow:0 2px 6px rgba(0,0,0,0.08);">
+        <h2 style="margin-top:0;color:#1A73E8;font-size:22px;">
+          オンライン実験へのご協力のお願い
+        </h2>
+
+        <p>
+          本研究は、日常的な選択行動において
+          <b>商品情報をどのように利用しているか</b> を調べることを目的としています。
+          大学生・大学院生の方を対象とした心理学の卒業研究です。
+        </p>
+
+        <h3 style="color:#1A73E8;font-size:19px;">参加について</h3>
+        <ul style="padding-left:20px;">
+          <li>参加は <b>完全に自由意志</b> に基づくものです。</li>
+          <li>途中で画面を閉じることで、いつでも中止することができます。</li>
+          <li>中止された場合でも、不利益を被ることは一切ありません。</li>
+        </ul>
+
+        <h3 style="color:#1A73E8;font-size:19px;">所要時間と内容</h3>
+        <ul style="padding-left:20px;">
+          <li>所要時間はおよそ <b>10〜15分程度</b> を予定しています。</li>
+          <li>はじめに、属性（性別・年齢など）と日常の意思決定に関する短い質問に回答していただきます。</li>
+          <li>その後、いくつかの商品や場面の中から、<b>もっとも魅力的だと思う選択肢を選ぶ課題</b> に取り組んでいただきます。</li>
+        </ul>
+
+        <h3 style="color:#1A73E8;font-size:19px;">個人情報とデータの取り扱い</h3>
+        <ul style="padding-left:20px;">
+          <li>回答データは <b>統計的にまとめてのみ</b> 利用され、個人が特定されることはありません。</li>
+          <li>学籍番号・氏名など、個人を特定できる情報は収集しません。</li>
+          <li>収集されたデータは、卒業論文および学会発表などの研究目的にのみ使用されます。</li>
+        </ul>
+
+        <p style="margin-top:16px;">
+          上記の説明をお読みいただき、研究の趣旨をご理解のうえで、
+          実験への参加にご同意いただける場合は、下の「同意して進む」ボタンを押してください。
+        </p>
+
+        <div style="text-align:center;margin-top:20px;">
+          <button id="consentBtn"
+                  class="btn-main"
+                  style="background:#1A73E8;color:#fff;border-radius:999px;
+                         padding:12px 32px;font-size:18px;">
+            同意して進む
+          </button>
+        </div>
+      </div>
+    `);
+
+    document.getElementById("consentBtn").onclick = () => {
+      resolve();
+    };
+  });
+}
 
 /* ===========================================
-   参加者情報入力画面（#app 内だけを書き換える）
+   1. 参加者情報入力画面
 =========================================== */
-
 function participantInfoTrial() {
   return new Promise((resolve) => {
-    const app = document.getElementById("app");
-    app.innerHTML = `
-      <div style="max-width:700px;margin:40px auto;font-size:18px;line-height:1.7;">
-        <h2>参加者情報の入力</h2>
+    setAppHTML(`
+      <div style="max-width:720px;margin:24px auto;padding:16px 18px;
+                  background:#FFFFFF;border-radius:12px;
+                  box-shadow:0 2px 6px rgba(0,0,0,0.08);">
+        <h2 style="margin-top:0;color:#1A73E8;font-size:22px;">
+          参加者情報の入力
+        </h2>
         <p>以下の項目に回答してください。</p>
 
-        <label>性別：</label><br>
-        <select id="gender" style="font-size:18px;">
-          <option value="">選択してください</option>
-          <option value="男性">男性</option>
-          <option value="女性">女性</option>
-          <option value="その他">その他</option>
-          <option value="回答しない">回答しない</option>
-        </select><br><br>
+        <div style="margin-top:12px;">
+          <label>性別：</label><br>
+          <select id="gender" style="font-size:17px;width:100%;padding:6px;">
+            <option value="">選択してください</option>
+            <option value="男性">男性</option>
+            <option value="女性">女性</option>
+            <option value="その他">その他</option>
+            <option value="回答しない">回答しない</option>
+          </select>
+        </div>
 
-        <label>年齢：</label><br>
-        <input id="age" type="number" min="16" max="80" style="font-size:18px;width:200px;"><br><br>
+        <div style="margin-top:12px;">
+          <label>年齢：</label><br>
+          <input id="age" type="number" min="16" max="80"
+                 style="font-size:17px;width:120px;padding:6px;">
+        </div>
 
-        <label>学年：</label><br>
-        <select id="grade" style="font-size:18px;">
-          <option value="">選択してください</option>
-          <option value="大学1年">大学1年</option>
-          <option value="大学2年">大学2年</option>
-          <option value="大学3年">大学3年</option>
-          <option value="大学4年">大学4年</option>
-          <option value="大学院 修士">大学院 修士</option>
-          <option value="大学院 博士">大学院 博士</option>
-          <option value="その他">その他</option>
-        </select><br><br>
+        <div style="margin-top:12px;">
+          <label>学年：</label><br>
+          <select id="grade" style="font-size:17px;width:100%;padding:6px;">
+            <option value="">選択してください</option>
+            <option value="大学1年">大学1年</option>
+            <option value="大学2年">大学2年</option>
+            <option value="大学3年">大学3年</option>
+            <option value="大学4年">大学4年</option>
+            <option value="大学院 修士">大学院 修士</option>
+            <option value="大学院 博士">大学院 博士</option>
+            <option value="その他">その他</option>
+          </select>
+        </div>
 
-        <label>大学所在地：</label><br>
-        <select id="location" style="font-size:18px;width:600px;">
-          <option value="">選択してください</option>
-          <option value="北海道">北海道</option>
-          <option value="東北（青森・岩手・宮城・秋田・山形・福島）">東北（青森・岩手・宮城・秋田・山形・福島）</option>
-          <option value="関東（茨城・栃木・群馬・埼玉・千葉・東京・神奈川）">関東（茨城・栃木・群馬・埼玉・千葉・東京・神奈川）</option>
-          <option value="中部（新潟・富山・石川・福井・山梨・長野・岐阜・静岡・愛知）">中部（新潟・富山・石川・福井・山梨・長野・岐阜・静岡・愛知）</option>
-          <option value="近畿（三重・滋賀・京都・大阪・兵庫・奈良・和歌山）">近畿（三重・滋賀・京都・大阪・兵庫・奈良・和歌山）</option>
-          <option value="中国（鳥取・島根・岡山・広島・山口）">中国（鳥取・島根・岡山・広島・山口）</option>
-          <option value="四国（徳島・香川・愛媛・高知）">四国（徳島・香川・愛媛・高知）</option>
-          <option value="九州・沖縄（福岡・佐賀・長崎・熊本・大分・宮崎・鹿児島・沖縄）">九州・沖縄（福岡・佐賀・長崎・熊本・大分・宮崎・鹿児島・沖縄）</option>
-        </select><br><br>
+        <div style="margin-top:12px;">
+          <label>大学所在地：</label><br>
+          <select id="location" style="font-size:17px;width:100%;padding:6px;">
+            <option value="">選択してください</option>
+            <option value="北海道">北海道</option>
+            <option value="東北（青森・岩手・宮城・秋田・山形・福島）">東北（青森・岩手・宮城・秋田・山形・福島）</option>
+            <option value="関東（茨城・栃木・群馬・埼玉・千葉・東京・神奈川）">関東（茨城・栃木・群馬・埼玉・千葉・東京・神奈川）</option>
+            <option value="中部（新潟・富山・石川・福井・山梨・長野・岐阜・静岡・愛知）">中部（新潟・富山・石川・福井・山梨・長野・岐阜・静岡・愛知）</option>
+            <option value="近畿（三重・滋賀・京都・大阪・兵庫・奈良・和歌山）">近畿（三重・滋賀・京都・大阪・兵庫・奈良・和歌山）</option>
+            <option value="中国（鳥取・島根・岡山・広島・山口）">中国（鳥取・島根・岡山・広島・山口）</option>
+            <option value="四国（徳島・香川・愛媛・高知）">四国（徳島・香川・愛媛・高知）</option>
+            <option value="九州・沖縄（福岡・佐賀・長崎・熊本・大分・宮崎・鹿児島・沖縄）">九州・沖縄（福岡・佐賀・長崎・熊本・大分・宮崎・鹿児島・沖縄）</option>
+          </select>
+        </div>
 
-        <label>専攻分野：</label><br>
-        <select id="major_field" style="font-size:18px;">
-          <option value="">選択してください</option>
-          <option value="文系">文系</option>
-          <option value="理系">理系</option>
-          <option value="その他">その他</option>
-        </select><br><br>
+        <div style="margin-top:12px;">
+          <label>専攻分野：</label><br>
+          <select id="major_field" style="font-size:17px;width:100%;padding:6px;">
+            <option value="">選択してください</option>
+            <option value="文系">文系</option>
+            <option value="理系">理系</option>
+            <option value="その他">その他</option>
+          </select>
+        </div>
 
-        <label>専攻領域：</label><br>
-        <select id="major_detail" style="font-size:18px;width:400px;">
-          <option value="">選択してください</option>
-          <option value="心理学">心理学</option>
-          <option value="経済・経営・商学">経済・経営・商学</option>
-          <option value="文学・人文系">文学・人文系</option>
-          <option value="法学・政治学">法学・政治学</option>
-          <option value="教育学">教育学</option>
-          <option value="社会学">社会学</option>
-          <option value="理学">理学（数学・物理・化学など）</option>
-          <option value="工学・情報系">工学・情報系</option>
-          <option value="医・薬・看護・保健系">医・薬・看護・保健系</option>
-          <option value="農学・生命科学">農学・生命科学</option>
-          <option value="その他">その他</option>
-        </select><br><br>
+        <div style="margin-top:12px;">
+          <label>専攻領域：</label><br>
+          <select id="major_detail" style="font-size:17px;width:100%;padding:6px;">
+            <option value="">選択してください</option>
+            <option value="心理学">心理学</option>
+            <option value="経済・経営・商学">経済・経営・商学</option>
+            <option value="文学・人文系">文学・人文系</option>
+            <option value="法学・政治学">法学・政治学</option>
+            <option value="教育学">教育学</option>
+            <option value="社会学">社会学</option>
+            <option value="理学">理学（数学・物理・化学など）</option>
+            <option value="工学・情報系">工学・情報系</option>
+            <option value="医・薬・看護・保健系">医・薬・看護・保健系</option>
+            <option value="農学・生命科学">農学・生命科学</option>
+            <option value="その他">その他</option>
+          </select>
+        </div>
 
-        <button id="nextBtn" style="font-size:20px;padding:10px 25px;">次へ</button>
+        <div style="text-align:center;margin-top:24px;">
+          <button id="nextBtn"
+                  class="btn-next"
+                  style="background:#0B875B;color:#fff;border-radius:999px;
+                         padding:10px 28px;font-size:18px;">
+            次へ
+          </button>
+        </div>
       </div>
-    `;
+    `);
 
     document.getElementById("nextBtn").onclick = () => {
       const info = {
@@ -116,18 +191,15 @@ function participantInfoTrial() {
         return;
       }
 
-      // グローバルに保存
       window.participantInfo = info;
-
       resolve();
     };
   });
 }
 
 /* ===========================================
-   優柔不断尺度 16項目（#app 内で表示）
+   2. 優柔不断尺度 16項目
 =========================================== */
-
 const INDECISIVE_ITEMS = [
   // F1 熟慮
   { id: "F1_1", text: "何かを決めるときには，かなりあれこれ迷うほうだ。" },
@@ -164,11 +236,13 @@ const LIKERT_LABELS = [
 
 function indecisivenessScaleTrial() {
   return new Promise((resolve) => {
-    const app = document.getElementById("app");
-
     let html = `
-      <div style="max-width:800px;margin:30px auto;font-size:18px;line-height:1.7;">
-        <h2>日常の選択行動についての質問</h2>
+      <div style="max-width:800px;margin:24px auto;padding:16px 18px;
+                  background:#FFFFFF;border-radius:12px;
+                  box-shadow:0 2px 6px rgba(0,0,0,0.08);">
+        <h2 style="margin-top:0;color:#1A73E8;font-size:22px;">
+          日常の選択行動についての質問
+        </h2>
         <p>
           次の文章について，あなた自身にどの程度あてはまるかをお尋ねします。<br>
           もっとも適切だと思う選択肢を1つ選んでください。
@@ -178,17 +252,17 @@ function indecisivenessScaleTrial() {
 
     INDECISIVE_ITEMS.forEach((item, idx) => {
       html += `
-        <div style="margin:15px 0;padding:10px;border-bottom:1px solid #ccc;">
-          <div style="margin-bottom:8px;">
+        <div style="margin:14px 0;padding:10px 6px;border-bottom:1px solid #e0e0e0;">
+          <div style="margin-bottom:6px;">
             <b>Q${idx + 1}.</b> ${item.text}
           </div>
       `;
       LIKERT_LABELS.forEach((label, v) => {
-        const value = v + 1; // 1〜5
+        const value = v + 1;
         const name = item.id;
         const inputId = `${name}_${value}`;
         html += `
-          <label for="${inputId}" style="margin-right:12px;">
+          <label for="${inputId}" style="margin-right:8px;display:inline-block;margin-bottom:4px;">
             <input type="radio" id="${inputId}" name="${name}" value="${value}">
             ${label}
           </label>
@@ -199,13 +273,18 @@ function indecisivenessScaleTrial() {
 
     html += `
         <div style="text-align:center;margin-top:20px;">
-          <button type="submit" style="font-size:20px;padding:10px 30px;">次へ</button>
+          <button type="submit"
+                  class="btn-next"
+                  style="background:#0B875B;color:#fff;border-radius:999px;
+                         padding:10px 28px;font-size:18px;">
+            次へ
+          </button>
         </div>
         </form>
       </div>
     `;
 
-    app.innerHTML = html;
+    setAppHTML(html);
 
     const form = document.getElementById("scaleForm");
     form.onsubmit = (e) => {
@@ -228,63 +307,25 @@ function indecisivenessScaleTrial() {
         return;
       }
 
-      // グローバルに保存
       window.indecisivenessScale = answers;
-
       resolve();
     };
   });
 }
 
 /***************************************
- * レビュー割り当てテーブル（固定）
+ * 3. レビュー割り当てテーブル（course 含む）
  ***************************************/
 const REVIEW_TABLE = {
-  laptop: {
-    A: 3.3,
-    B: 4.8,
-    C: 4.5,
-    D: 4.1,
-    E: 3.7
-  },
-  apartment: {
-    1: 4.8,
-    2: 4.4,
-    3: 3.3,
-    4: 3.6,
-    5: 4.2
-  },
-  company: {
-    1: 4.5,
-    2: 3.8,
-    3: 4.8,
-    4: 4.2,
-    5: 3.3
-  },
-  souvenir: {
-    1: 4.2,
-    2: 4.8,
-    3: 3.7,
-    4: 4.5,
-    5: 3.3
-  },
-  detergent: {
-    A: 4.2,
-    B: 4.8,
-    C: 3.3,
-    D: 4.5,
-    E: 3.7
-  },
-  course: {
-  1: 4.7,
-  2: 4.0,
-  3: 3.6,
-  4: 3.2,
-  5: 4.3
-  }
+  laptop:   { A: 3.3, B: 4.8, C: 4.5, D: 4.1, E: 3.7 },
+  apartment:{ 1: 4.8, 2: 4.4, 3: 3.3, 4: 3.6, 5: 4.2 },
+  company:  { 1: 4.5, 2: 3.8, 3: 4.8, 4: 4.2, 5: 3.3 },
+  souvenir: { 1: 4.2, 2: 4.8, 3: 3.7, 4: 4.5, 5: 3.3 },
+  detergent:{ A: 4.2, B: 4.8, C: 3.3, D: 4.5, E: 3.7 },
+  course:   { 1: 4.4, 2: 3.7, 3: 4.1, 4: 4.8, 5: 3.3 } // ←追加
 };
 
-// 数値（例：4.5）を「4.5 (★★★★★)」の形に変換
+// レビュー値の表示整形
 function formatReviewValue(num) {
   const rounded = Math.round(num * 10) / 10;
   const starsCount = Math.round(rounded);
@@ -292,9 +333,9 @@ function formatReviewValue(num) {
   return `${rounded.toFixed(1)} (${starStr})`;
 }
 
-// ================================
-// 1. シード付き乱数 & パターン
-// ================================
+/***************************************
+ * 4. シード付き乱数 & パターン処理
+ ***************************************/
 function makeSeededRandom(seed) {
   let x = seed % 2147483647;
   if (x <= 0) x += 2147483646;
@@ -304,10 +345,24 @@ function makeSeededRandom(seed) {
   };
 }
 
-// 16パターンのうち、レビュー有無を3ビットで表現
+const url = new URL(window.location.href);
+const urlParams = url.searchParams;
+
+// pattern 指定がなければ 1〜16 からランダムに付与
+let patternID = Number(urlParams.get("pattern") || "0");
+if (!patternID || patternID < 1 || patternID > 16) {
+  patternID = Math.floor(Math.random() * 16) + 1;
+  console.log("pattern 未指定のためランダム割当:", patternID);
+} else {
+  console.log("URL指定 pattern:", patternID);
+}
+
+const rand = makeSeededRandom(patternID);
+
+// パターン分解：レビュー有課題の組み合わせ
 function decodePattern(pattern) {
-  const rGroup = ((pattern - 1) % 8);     // 0〜7
-  const orderFlag = (pattern > 8 ? 1 : 0); // 0 or 1（今回は未使用だが残しておく）
+  const rGroup = ((pattern - 1) % 8);
+  const orderFlag = (pattern > 8 ? 1 : 0); // 今回は未使用だが保持
 
   const highBit = (rGroup & 1) ? 1 : 0;
   const lowBit  = (rGroup & 2) ? 1 : 0;
@@ -315,10 +370,9 @@ function decodePattern(pattern) {
 
   return { highBit, lowBit, noneBit, orderFlag };
 }
-
 const PAT = decodePattern(patternID);
 
-// シャッフル（シード付き）
+// シャッフル
 function shuffle(arr) {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
@@ -342,25 +396,9 @@ function sendToSheet(resultObj) {
 }
 
 /***************************************
- * 6課題データ（5属性）ベース
+ * 5. 課題データ（5属性ベース）
  ***************************************/
 const TASKS_BASE = {
-    // -------------- 練習課題（必ず先に実施） --------------
-  practiceGift: {
-  name: "友人へのプレゼント（練習）",
-  cost: "practice",   // ★これで記録をスキップできる
-  attributes: ["価格","デザイン","使いやすさ","耐久性","サイズ","ブランド"],
-  options: [
-    ["2000円","良い","ふつう","やや強い","ふつう","一般的"],
-    ["1500円","ふつう","良い","ふつう","やや小さい","やや有名"],
-    ["2500円","やや良い","やや悪い","強い","やや大きい","やや一般的"],
-    ["1800円","悪い","ふつう","弱い","ふつう","無名"],
-    ["3000円","良い","良い","やや強い","やや小さい","有名"]
-  ],
-  labels: ["A","B","C","D","E"]
-},
-
-
   // 高コスト
   laptop: {
     name: "ノートパソコン",
@@ -394,13 +432,14 @@ const TASKS_BASE = {
   souvenir: {
     name: "お土産（お菓子）",
     cost: "low",
+    // 「おすすめ度」を「保存期間」に変更済み
     attributes: ["価格","量","保存期間","味","パッケージ"],
     options: [
-      ["800円","少ない","20日","やや美味しい","良い"],
-      ["1000円","ふつう","60日","まずい","やや良い"],
-      ["600円","多い","14日","ふつう","やや悪い"],
-      ["400円","やや多い","30日","ややまずい","悪い"],
-      ["1200円","やや少ない","45日","美味しい","ふつう"]
+      ["800円","少ない","短い","やや美味しい","良い"],
+      ["1000円","ふつう","普通","まずい","やや良い"],
+      ["600円","多い","やや長い","ふつう","やや悪い"],
+      ["400円","やや多い","短い","ややまずい","悪い"],
+      ["1200円","やや少ない","長い","美味しい","ふつう"]
     ],
     labels: ["1","2","3","4","5"]
   },
@@ -434,47 +473,47 @@ const TASKS_BASE = {
     labels: ["1","2","3","4","5"]
   },
 
-    course: {
+  course: {
     name: "大学授業",
     cost: "none",
-    attributes: [
-      "興味関心",
-      "テストの容易さ",
-      "授業の分かりやすさ",  // ← ここを変更
-      "将来への関連",
-      "課題量"
-    ],
+    // 「友人の推薦」 → 「授業の評判」等に変更してレビューと被りにくく
+    attributes: ["興味関心","テストの容易さ","授業の評判","将来への関連","課題量"],
     options: [
-      // 旧） ["やや高い","やや難しい","低い","高い","ふつう"]
-      // 新しい「分かりやすさ」軸に変更
-      ["やや高い", "やや難しい", "分かりにくい", "高い", "ふつう"],
-
-      // 旧） ["やや低い","ふつう","やや高い","低い","少ない"]
-      ["やや低い", "ふつう", "やや分かりやすい", "低い", "少ない"],
-
-      // 旧） ["ふつう","簡単","やや低い","やや高い","多い"]
-      ["ふつう", "簡単", "やや分かりにくい", "やや高い", "多い"],
-
-      // 旧） ["高い","難しい","ふつう","やや低い","やや少ない"]
-      ["高い", "難しい", "ふつう", "やや低い", "やや少ない"],
-
-      // 旧） ["低い","やや簡単","高い","ふつう","やや多い"]
-      ["低い", "やや簡単", "分かりやすい", "ふつう", "やや多い"]
+      ["やや高い","やや難しい","あまり良くない","高い","ふつう"],
+      ["やや低い","ふつう","やや良い","低い","少ない"],
+      ["ふつう","簡単","ふつう","やや高い","多い"],
+      ["高い","難しい","良い","やや低い","やや少ない"],
+      ["低い","やや簡単","とても良い","ふつう","やや多い"]
     ],
     labels: ["1","2","3","4","5"]
   }
-
 };
 
 /***************************************
- * 6属性化：レビュー or ダミー属性を付与
+ * 6. 練習課題データ（保存しない / 6属性）
+ ***************************************/
+const PRACTICE_TASK = {
+  name: "友人へのプレゼント（練習）",
+  attributes: ["知名度","価格","入手困難さ","実用性","趣味の合致","デザイン"],
+  options: [
+    ["高い","500円","低い","高い","合う","シンプル"],
+    ["やや高い","1000円","やや低い","やや高い","やや合う","かわいい"],
+    ["ふつう","1500円","ふつう","ふつう","ふつう","おしゃれ"],
+    ["やや低い","2000円","やや高い","やや低い","やや合わない","個性的"],
+    ["低い","2500円","高い","低い","合わない","派手"]
+  ],
+  labels: ["A","B","C","D","E"]
+};
+
+/***************************************
+ * 7. 6属性化：レビュー or ダミー属性付与
  ***************************************/
 function buildTasksWithReview() {
   const tasks = JSON.parse(JSON.stringify(TASKS_BASE));
 
-  const highPair = ["laptop","apartment"];
-  const lowPair  = ["souvenir","detergent"];
-  const nonePair = ["company","course"];
+  const highPair = ["laptop", "apartment"];
+  const lowPair  = ["souvenir", "detergent"];
+  const nonePair = ["company", "course"];
 
   const selectedHigh = highPair[PAT.highBit];
   const selectedLow  = lowPair[PAT.lowBit];
@@ -483,17 +522,8 @@ function buildTasksWithReview() {
   for (const key of Object.keys(tasks)) {
     const t = tasks[key];
 
-    // ★★★ 練習課題だけはレビュー判定を完全にスキップ ★★★
-    if (t.cost === "practice") {
-      t.review_present = false;
-      // 何も追加しない（6属性のまま）
-      continue;
-    }
-
-    // ここ以降は本番6課題のみ
-
+    // レビューあり課題
     if (key === selectedHigh || key === selectedLow || key === selectedNone) {
-      // レビューあり
       t.attributes.push("レビュー評価");
       t.options = t.options.map((row, idx) => {
         const r = row.slice();
@@ -504,8 +534,8 @@ function buildTasksWithReview() {
       });
       t.review_present = true;
 
+    // レビューなし課題
     } else {
-      // レビューなし（ダミー属性）
       t.attributes.push("その他情報");
       t.options = t.options.map(row => {
         const r = row.slice();
@@ -522,15 +552,16 @@ function buildTasksWithReview() {
 const ALL_TASKS = buildTasksWithReview();
 
 /***************************************
- * 属性順シャッフル
+ * 8. 属性順シャッフル
  ***************************************/
 function applyAttributeOrder(tasks) {
   for (const key of Object.keys(tasks)) {
     const t = tasks[key];
 
-    const zipped = t.attributes.map((attr, idx) => {
-      return { attr, col: t.options.map(row => row[idx]) };
-    });
+    const zipped = t.attributes.map((attr, idx) => ({
+      attr,
+      col: t.options.map(row => row[idx])
+    }));
 
     const shuffled = shuffle(zipped);
 
@@ -549,20 +580,30 @@ function applyAttributeOrder(tasks) {
 }
 
 const TASKS_ORDERED = applyAttributeOrder(JSON.parse(JSON.stringify(ALL_TASKS)));
-
-// 本番課題だけシャッフル
-const MAIN_TASK_KEYS = shuffle(["laptop","apartment","souvenir","detergent","company","course"]);
-
-// 練習課題 → 本番課題 の順に実施
-const TASK_KEYS = ["practiceGift", ...MAIN_TASK_KEYS];
+const TASK_KEYS = shuffle(["laptop","apartment","souvenir","detergent","company","course"]);
 
 /***************************************
- * UIレンダリング＋ログ
+ * 9. 共通 UI（本番課題＋ログ）
  ***************************************/
 let currentTaskIndex = 0;
 let startTime = 0;
 let clickLog = [];
 let lastOpenedCell = null;
+
+function createGridCell(text, isHeader) {
+  const div = document.createElement("div");
+  div.textContent = text;
+  div.style.width = "120px";
+  div.style.height = "70px";
+  div.style.boxSizing = "border-box";
+  div.style.border = "1px solid #ddd";
+  div.style.fontSize = "13px";
+  div.style.display = "flex";
+  div.style.alignItems = "center";
+  div.style.justifyContent = "center";
+  div.style.background = isHeader ? "#E8F1FD" : "#fff";
+  return div;
+}
 
 function renderTask() {
   const key = TASK_KEYS[currentTaskIndex];
@@ -578,47 +619,33 @@ function renderTask() {
   const title = document.createElement("h2");
   title.textContent = task.name;
   title.style.textAlign = "center";
-  title.style.margin = "15px";
+  title.style.margin = "12px 0 8px";
+  title.style.color = "#1A73E8";
   app.appendChild(title);
 
   const grid = document.createElement("div");
   grid.style.display = "grid";
-  grid.style.gridTemplateColumns = "120px repeat(6, 120px)";
+  grid.style.gridTemplateColumns = "90px repeat(6, 110px)";
   grid.style.gap = "0";
   grid.style.margin = "0 auto";
   grid.style.border = "1px solid #ccc";
   grid.style.background = "#ccc";
-  grid.style.maxWidth = "900px";
+  grid.style.maxWidth = "780px";
   grid.style.overflowX = "auto";
   app.appendChild(grid);
 
-  function makeCell(text, isHeader) {
-    const div = document.createElement("div");
-    div.textContent = text;
-    div.style.width = "120px";
-    div.style.height = "70px";
-    div.style.boxSizing = "border-box";
-    div.style.border = "1px solid #ccc";
-    div.style.fontSize = "13px";
-    div.style.display = "flex";
-    div.style.alignItems = "center";
-    div.style.justifyContent = "center";
-    div.style.background = isHeader ? "#f0f0f0" : "#fff";
-    return div;
-  }
-
   // 1行目：空 + 属性名
-  grid.appendChild(makeCell("", true));
+  grid.appendChild(createGridCell("", true));
   for (let c = 0; c < task.attributes.length; c++) {
-    grid.appendChild(makeCell(task.attributes[c], true));
+    grid.appendChild(createGridCell(task.attributes[c], true));
   }
 
-  // 各行：選択肢ラベル + 6属性パネル
+  // 各行：行ラベル + パネル
   for (let r = 0; r < task.options.length; r++) {
-    grid.appendChild(makeCell(task.labels[r], true));
+    grid.appendChild(createGridCell(task.labels[r], true));
 
     for (let c = 0; c < task.attributes.length; c++) {
-      const cell = makeCell("", false);
+      const cell = createGridCell("", false);
       cell.dataset.rowLabel = task.labels[r];
       cell.dataset.attrName = task.attributes[c];
       cell.dataset.value = task.options[r][c];
@@ -632,7 +659,7 @@ function renderTask() {
 
         const t = Math.round(performance.now() - startTime);
         cell.textContent = cell.dataset.value;
-        cell.style.background = "#e6f0ff";
+        cell.style.background = "#FFF8E1";
 
         clickLog.push({
           panel: `${cell.dataset.rowLabel}_${cell.dataset.attrName}`,
@@ -646,12 +673,15 @@ function renderTask() {
     }
   }
 
-  // 決定ボタン
   const decideBtn = document.createElement("button");
   decideBtn.textContent = "決定";
+  decideBtn.className = "btn-next";
   decideBtn.style.display = "block";
-  decideBtn.style.margin = "20px auto";
-  decideBtn.style.padding = "8px 20px";
+  decideBtn.style.margin = "16px auto 8px";
+  decideBtn.style.background = "#0B875B";
+  decideBtn.style.color = "#fff";
+  decideBtn.style.borderRadius = "999px";
+  decideBtn.style.padding = "8px 24px";
   decideBtn.style.fontSize = "16px";
   app.appendChild(decideBtn);
 
@@ -664,30 +694,35 @@ function renderTask() {
   };
 }
 
-// 選択肢ボタン部分
 function renderChoiceButtons(task, box) {
   box.innerHTML = "";
 
   const msg = document.createElement("h3");
   msg.textContent = "どの選択肢を選びますか？";
-  msg.style.marginTop = "20px";
+  msg.style.marginTop = "10px";
+  msg.style.color = "#333";
   box.appendChild(msg);
 
   const chDiv = document.createElement("div");
+  chDiv.style.marginTop = "6px";
   let taskSubmitted = false;
 
   task.labels.forEach(label => {
     const b = document.createElement("button");
     b.textContent = label;
-    b.style.margin = "5px";
-    b.style.padding = "8px 16px";
+    b.style.margin = "4px";
+    b.style.padding = "8px 14px";
     b.style.fontSize = "16px";
+    b.style.borderRadius = "999px";
+    b.style.border = "1px solid #1A73E8";
+    b.style.background = "#fff";
 
     b.onclick = () => {
       if (taskSubmitted) return;
       taskSubmitted = true;
       finishTask(task, label);
-      highlightSelected(chDiv, b);
+      [...chDiv.children].forEach(btn => btn.style.background = "#fff");
+      b.style.background = "#C8E6C9";
     };
 
     chDiv.appendChild(b);
@@ -696,8 +731,12 @@ function renderChoiceButtons(task, box) {
 
   const nextBtn = document.createElement("button");
   nextBtn.textContent = "次の課題へ進む";
-  nextBtn.style.marginTop = "15px";
-  nextBtn.style.padding = "8px 20px";
+  nextBtn.className = "btn-main";
+  nextBtn.style.marginTop = "14px";
+  nextBtn.style.background = "#1A73E8";
+  nextBtn.style.color = "#fff";
+  nextBtn.style.borderRadius = "999px";
+  nextBtn.style.padding = "8px 22px";
   nextBtn.style.fontSize = "16px";
   nextBtn.onclick = () => {
     currentTaskIndex++;
@@ -710,28 +749,11 @@ function renderChoiceButtons(task, box) {
   box.appendChild(nextBtn);
 }
 
-function highlightSelected(div, btn) {
-  [...div.children].forEach(b => b.style.background = "");
-  btn.style.background = "#c8e6c9";
-}
-
 // 課題終了 → スプレッドシート送信
-// =====================================
-// 13. 課題終了 → スプレッドシート送信
-// =====================================
 function finishTask(task, choice) {
   const endTime = Math.round(performance.now() - startTime);
 
-  // ---- ここを追加：練習課題は記録しない ----
-  if (task.cost === "practice") {
-    console.log("練習課題のため送信をスキップ");
-    return;
-  }
-  // ------------------------------------------
-
-  // ------ ★ chosen_review_value を計算 ------
   let chosen_review_value = null;
-
   if (task.review_present) {
     const idx = task.labels.indexOf(choice);
     if (idx >= 0) {
@@ -751,32 +773,266 @@ function finishTask(task, choice) {
     decision_time: endTime,
     click_log: clickLog,
     attribute_order: task.attributes,
-    chosen_review_value: chosen_review_value,   // ← 正しい参照
+    chosen_review_value: chosen_review_value,
     participant_info: window.participantInfo || null,
     indecisiveness_scale: window.indecisivenessScale || null,
+    pattern_id: patternID
   };
 
   sendToSheet(resultObj);
 }
 
-// 終了画面
-function showEnd() {
-  const app = document.getElementById("app");
-  app.innerHTML = `
-    <div style="text-align:center;margin-top:80px;">
-      <h2>以上で終了です。ご協力ありがとうございました。</h2>
-    </div>
-  `;
+/***************************************
+ * 10. 練習課題用 UI（保存しない）
+ ***************************************/
+function showPracticeIntro() {
+  return new Promise((resolve) => {
+    setAppHTML(`
+      <div style="max-width:720px;margin:24px auto;padding:16px 18px;
+                  background:#FFFFFF;border-radius:12px;
+                  box-shadow:0 2px 6px rgba(0,0,0,0.08);">
+        <h2 style="margin-top:0;color:#1A73E8;font-size:22px;">
+          練習課題の説明
+        </h2>
+        <p>
+          これから、本番と同じ形式の <b>練習用の課題</b> を1問行っていただきます。<br>
+          画面には、行（A〜E）と、いくつかの属性の列からなる表が表示されます。
+        </p>
+        <ul style="padding-left:20px;">
+          <li>各マスをタップすると、そのマスの情報が表示されます。</li>
+          <li>新しいマスをタップすると、前に開いていたマスの表示は消えます。</li>
+          <li>十分に確認したら、「決定」ボタンを押して、もっとも良いと思う選択肢を選んでください。</li>
+        </ul>
+        <p>
+          練習課題の結果は、本研究の分析には使用しません。<br>
+          操作方法に慣れるために、気軽にお答えください。
+        </p>
+        <div style="text-align:center;margin-top:18px;">
+          <button id="practiceIntroNext"
+                  class="btn-main"
+                  style="background:#1A73E8;color:#fff;border-radius:999px;
+                         padding:10px 28px;font-size:18px;">
+            練習課題を始める
+          </button>
+        </div>
+      </div>
+    `);
+
+    document.getElementById("practiceIntroNext").onclick = () => resolve();
+  });
+}
+
+function practiceTaskTrial() {
+  return new Promise((resolve) => {
+    clickLog = [];
+    lastOpenedCell = null;
+    startTime = performance.now();
+
+    const task = PRACTICE_TASK;
+    const app = document.getElementById("app");
+    app.innerHTML = "";
+
+    const title = document.createElement("h2");
+    title.textContent = task.name;
+    title.style.textAlign = "center";
+    title.style.margin = "12px 0 8px";
+    title.style.color = "#1A73E8";
+    app.appendChild(title);
+
+    const grid = document.createElement("div");
+    grid.style.display = "grid";
+    grid.style.gridTemplateColumns = "90px repeat(6, 110px)";
+    grid.style.gap = "0";
+    grid.style.margin = "0 auto";
+    grid.style.border = "1px solid #ccc";
+    grid.style.background = "#ccc";
+    grid.style.maxWidth = "780px";
+    grid.style.overflowX = "auto";
+    app.appendChild(grid);
+
+    grid.appendChild(createGridCell("", true));
+    for (let c = 0; c < task.attributes.length; c++) {
+      grid.appendChild(createGridCell(task.attributes[c], true));
+    }
+
+    for (let r = 0; r < task.options.length; r++) {
+      grid.appendChild(createGridCell(task.labels[r], true));
+
+      for (let c = 0; c < task.attributes.length; c++) {
+        const cell = createGridCell("", false);
+        cell.dataset.rowLabel = task.labels[r];
+        cell.dataset.attrName = task.attributes[c];
+        cell.dataset.value = task.options[r][c];
+
+        cell.onclick = () => {
+          if (lastOpenedCell && lastOpenedCell !== cell) {
+            lastOpenedCell.textContent = "";
+            lastOpenedCell.style.background = "#fff";
+          }
+          lastOpenedCell = cell;
+
+          const t = Math.round(performance.now() - startTime);
+          cell.textContent = cell.dataset.value;
+          cell.style.background = "#FFF8E1";
+
+          clickLog.push({
+            panel: `${cell.dataset.rowLabel}_${cell.dataset.attrName}`,
+            attribute: cell.dataset.attrName,
+            value: cell.dataset.value,
+            time: t
+          });
+        };
+
+        grid.appendChild(cell);
+      }
+    }
+
+    const decideBtn = document.createElement("button");
+    decideBtn.textContent = "決定";
+    decideBtn.className = "btn-next";
+    decideBtn.style.display = "block";
+    decideBtn.style.margin = "16px auto 8px";
+    decideBtn.style.background = "#0B875B";
+    decideBtn.style.color = "#fff";
+    decideBtn.style.borderRadius = "999px";
+    decideBtn.style.padding = "8px 24px";
+    decideBtn.style.fontSize = "16px";
+    app.appendChild(decideBtn);
+
+    const choiceArea = document.createElement("div");
+    choiceArea.style.textAlign = "center";
+    app.appendChild(choiceArea);
+
+    decideBtn.onclick = () => {
+      choiceArea.innerHTML = "";
+
+      const msg = document.createElement("h3");
+      msg.textContent = "どの選択肢を選びますか？（練習）";
+      msg.style.marginTop = "10px";
+      choiceArea.appendChild(msg);
+
+      const chDiv = document.createElement("div");
+      chDiv.style.marginTop = "6px";
+
+      task.labels.forEach(label => {
+        const b = document.createElement("button");
+        b.textContent = label;
+        b.style.margin = "4px";
+        b.style.padding = "8px 14px";
+        b.style.fontSize = "16px";
+        b.style.borderRadius = "999px";
+        b.style.border = "1px solid #1A73E8";
+        b.style.background = "#fff";
+
+        b.onclick = () => {
+          [...chDiv.children].forEach(btn => btn.style.background = "#fff");
+          b.style.background = "#C8E6C9";
+        };
+
+        chDiv.appendChild(b);
+      });
+      choiceArea.appendChild(chDiv);
+
+      const nextBtn = document.createElement("button");
+      nextBtn.textContent = "本番課題へ進む";
+      nextBtn.className = "btn-main";
+      nextBtn.style.marginTop = "14px";
+      nextBtn.style.background = "#1A73E8";
+      nextBtn.style.color = "#fff";
+      nextBtn.style.borderRadius = "999px";
+      nextBtn.style.padding = "8px 22px";
+      nextBtn.style.fontSize = "16px";
+      nextBtn.onclick = () => resolve();
+      choiceArea.appendChild(nextBtn);
+    };
+  });
 }
 
 /***************************************
- * 実行エントリポイント
+ * 11. 本番課題の前説明
+ ***************************************/
+function showMainIntro() {
+  return new Promise((resolve) => {
+    setAppHTML(`
+      <div style="max-width:720px;margin:24px auto;padding:16px 18px;
+                  background:#FFFFFF;border-radius:12px;
+                  box-shadow:0 2px 6px rgba(0,0,0,0.08);">
+        <h2 style="margin-top:0;color:#1A73E8;font-size:22px;">
+          本番課題の説明
+        </h2>
+        <p>
+          これから、本番の<b>6つの選択課題</b>に取り組んでいただきます。<br>
+          練習課題と同様に、各マスをタップすると、そのマスの情報が表示されます。
+        </p>
+        <ul style="padding-left:20px;">
+          <li>各課題ごとに、もっとも良いと思う選択肢を1つ選んでください。</li>
+          <li>「決定」ボタンを押したあと、選択肢（A〜E または 1〜5）の中から1つを選び、「次の課題へ進む」を押してください。</li>
+          <li>直感的にお答えいただいてかまいませんが、実際にその場面に直面したつもりでお考えください。</li>
+        </ul>
+        <p>
+          それでは、本番課題を開始します。
+        </p>
+        <div style="text-align:center;margin-top:18px;">
+          <button id="mainIntroNext"
+                  class="btn-main"
+                  style="background:#1A73E8;color:#fff;border-radius:999px;
+                         padding:10px 28px;font-size:18px;">
+            本番課題を始める
+          </button>
+        </div>
+      </div>
+    `);
+
+    document.getElementById("mainIntroNext").onclick = () => resolve();
+  });
+}
+
+/***************************************
+ * 12. 終了画面（倫理文書風）
+ ***************************************/
+function showEnd() {
+  setAppHTML(`
+    <div style="max-width:720px;margin:24px auto;padding:16px 18px;
+                background:#FFFFFF;border-radius:12px;
+                box-shadow:0 2px 6px rgba(0,0,0,0.08);text-align:left;">
+      <h2 style="margin-top:0;color:#1A73E8;font-size:22px;text-align:center;">
+        実験は以上です
+      </h2>
+      <p>
+        すべての課題が終了しました。<br>
+        ご協力ありがとうございました。
+      </p>
+      <p>
+        みなさまにご回答いただいたデータは、匿名化されたうえで集計され、
+        卒業論文および学術的な発表のためにのみ使用されます。
+        個人が特定されるかたちで公表されることはありません。
+      </p>
+      <p>
+        もし本研究の内容やデータの取り扱いについてご質問がある場合は、
+        担当者（指導教員または学生）までお問い合わせください。
+      </p>
+      <p>
+        あらためて、本研究にご協力いただきましたことに深く感謝申し上げます。
+      </p>
+      <div style="text-align:center;margin-top:18px;color:#666;font-size:14px;">
+        画面を閉じて終了してください。
+      </div>
+    </div>
+  `);
+}
+
+/***************************************
+ * 13. 実行エントリポイント
  ***************************************/
 async function runExperiment() {
-  await participantInfoTrial();
-  await indecisivenessScaleTrial();
+  await showIntroPage();          // 倫理説明＋同意
+  await participantInfoTrial();   // 参加者情報
+  await indecisivenessScaleTrial(); // 優柔不断尺度
+  await showPracticeIntro();      // 練習課題説明
+  await practiceTaskTrial();      // 練習課題（保存なし）
+  await showMainIntro();          // 本番課題説明
   currentTaskIndex = 0;
-  renderTask();
+  renderTask();                   // 本番6課題開始
 }
 
 window.addEventListener("load", () => {
