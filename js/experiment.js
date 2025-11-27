@@ -511,9 +511,9 @@ const PRACTICE_TASK = {
 function buildTasksWithReview() {
   const tasks = JSON.parse(JSON.stringify(TASKS_BASE));
 
-  const highPair = ["laptop", "apartment"];
-  const lowPair  = ["souvenir", "detergent"];
-  const nonePair = ["company", "course"];
+  const highPair = ["laptop","apartment"];
+  const lowPair  = ["souvenir","detergent"];
+  const nonePair = ["company","course"];
 
   const selectedHigh = highPair[PAT.highBit];
   const selectedLow  = lowPair[PAT.lowBit];
@@ -522,23 +522,26 @@ function buildTasksWithReview() {
   for (const key of Object.keys(tasks)) {
     const t = tasks[key];
 
-    // レビューあり課題
+    // レビューあり課題（6属性目をレビュー評価に上書き）
     if (key === selectedHigh || key === selectedLow || key === selectedNone) {
-      t.attributes.push("レビュー評価");
+      const newAttrs = t.attributes.slice();
+      newAttrs[5] = "レビュー評価";  // ★6属性目をレビュー評価に置換
+      t.attributes = newAttrs;
+
       t.options = t.options.map((row, idx) => {
         const r = row.slice();
         const label = t.labels[idx];
         const score = REVIEW_TABLE[key][label];
-        newRow[5] = formatReviewValue(score);  // ← 6列目に上書き
-        return newRow;
+        r[5] = formatReviewValue(score);  // ★6列目をレビューの値に置換
+        return r;
       });
+
       t.review_present = true;
 
-    // レビューなし課題
-   // レビューなし課題：ダミー属性を追加しない（6属性目をそのまま使う）
-　　} else {
- 　　 t.review_present = false;
-　　}
+    } else {
+      t.review_present = false;
+      // ★レビューなし課題は6属性目はそのまま（耐久性・築年数など）
+    }
   }
 
   return tasks;
