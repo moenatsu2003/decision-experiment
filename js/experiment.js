@@ -1,3 +1,4 @@
+どこを変えれば良いか
 /***************************************
  * experiment.js（完全版）
  * 6属性方式 + レビュー列 + 16パターン
@@ -621,16 +622,25 @@ function renderTask() {
   title.style.color = "#1A73E8";
   app.appendChild(title);
 
-  const grid = document.createElement("div");
-  grid.style.display = "grid";
-  grid.style.gridTemplateColumns = "90px repeat(6, 110px)";
-  grid.style.gap = "0";
-  grid.style.margin = "0 auto";
-  grid.style.border = "1px solid #ccc";
-  grid.style.background = "#ccc";
-  grid.style.maxWidth = "780px";
-  grid.style.overflowX = "auto";
-  app.appendChild(grid);
+  // ★ scale-container を作成
+const scaleContainer = document.createElement("div");
+scaleContainer.className = "scale-container";
+app.appendChild(scaleContainer);
+
+// パネル本体
+const grid = document.createElement("div");
+grid.style.display = "grid";
+grid.style.gridTemplateColumns = "90px repeat(6, 110px)";
+grid.style.gap = "0";
+grid.style.margin = "0 auto";
+grid.style.border = "1px solid #ccc";
+grid.style.background = "#ccc";
+grid.style.maxWidth = "780px";
+grid.style.overflowX = "auto";
+
+// ★ grid を scale-container の中に入れる
+scaleContainer.appendChild(grid);
+
 
   // 1行目：空 + 属性名
   grid.appendChild(createGridCell("", true));
@@ -837,6 +847,12 @@ function practiceTaskTrial() {
     title.style.color = "#1A73E8";
     app.appendChild(title);
 
+　　 // ★ scale-container を作成
+　　 const scaleContainer = document.createElement("div");
+　　 scaleContainer.className = "scale-container";
+　　 app.appendChild(scaleContainer);
+
+　　 // パネル本体
     const grid = document.createElement("div");
     grid.style.display = "grid";
     grid.style.gridTemplateColumns = "90px repeat(6, 110px)";
